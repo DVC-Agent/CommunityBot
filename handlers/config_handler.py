@@ -1,11 +1,14 @@
 """
-This file handles telegram token reading from JSON file.
+This file handles telegram token reading from environment variables.
 """
-import json
+import os
+from dotenv import load_dotenv
 
-with open(r'.vscode\config.json') as config_data:
-    CONFIG = json.load(config_data)
+load_dotenv()
 
 
 def get_token():
-    return CONFIG['bot']['token']
+    token = os.getenv('TELEGRAM_BOT_TOKEN')
+    if not token:
+        raise ValueError("TELEGRAM_BOT_TOKEN not found in environment variables. Please create a .env file with your bot token.")
+    return token

@@ -6,18 +6,18 @@ from telegram.ext import (
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """"""
 
-    message = """ Привіт! Це Random Coffee 😎
-    
-Я допоможу тобі знайомитися та організовувати зустрічі з цікавими людьми в твоєму чаті.
-    
-Для створення події використовуй команду /coffee разом з датою проведення.
+    message = """ Hi! This is Random Coffee 😎
 
-Приклад: /coffee 30 липня
+I will help you meet and organize meetings with interesting people in your chat.
 
-Необхідна кількість учасників для проведення Random Coffee від 4-х осіб.
-Зупинити опитування може лише творець події.
-            
-Бажаю вдалого нетворкінгу!
+To create an event, use the /coffee command along with the date.
+
+Example: /coffee July 30
+
+Minimum number of participants required for Random Coffee is 4 people.
+Only the event creator can stop the poll.
+
+Happy networking!
     """
 
     await update.message.reply_text(message)

@@ -9,18 +9,22 @@ async def coffee(update: Update, context: ContextTypes.DEFAULT_TYPE):
     date_of_event = context.args[:] if context.args else None
 
     if date_of_event:
-        poll_question = f"Random Сoffee {' '.join(date_of_event)}!\nБереш участь?"
+        poll_question = f"Random Coffee {' '.join(date_of_event)}!\nWill you participate?"
 
-        options = ["Так ☕️", "Не можу 😔"]
+        options = ["Yes ☕️", "Can't make it 😔"]
+
+        # Get message_thread_id for supergroups with topics
+        message_thread_id = update.message.message_thread_id
 
         # Send message with poll
         poll_message = await context.bot.send_poll(
             chat_id=update.effective_chat.id,
+            message_thread_id=message_thread_id,
             question=poll_question,
             options=options,
             is_anonymous=False,
             reply_markup=InlineKeyboardMarkup.from_row([
-                InlineKeyboardButton("Зупинити опитування", callback_data="stop_poll")
+                InlineKeyboardButton("Stop Poll", callback_data="stop_poll")
             ])  # Add an inline button to stop the poll
         )
 
@@ -29,6 +33,7 @@ async def coffee(update: Update, context: ContextTypes.DEFAULT_TYPE):
             poll_message.poll.id: {
                 "chat_id": update.effective_chat.id,
                 "message_id": poll_message.message_id,
+                "message_thread_id": message_thread_id,
                 "creator_id": update.message.from_user.id,
                 "users_in": []
             }
@@ -82,28 +87,29 @@ async def stop_poll(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             # Inform users that the poll has been stopped
-            await query.answer("Опитування зупинено.")
-            
+            await query.answer("Poll stopped.")
+
             if len(poll_data["users_in"]) > 3:
                 # Trigger the generate_matches function
-                await generate_matches(update, context, poll_data["users_in"])
+                await generate_matches(update, context, poll_data["users_in"], poll_data["message_thread_id"])
             else:
                 # Send a message indicating there are not enough users to hold a session
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
-                    text="Недостатньо учасників для проведення."
+                    message_thread_id=poll_data["message_thread_id"],
+                    text="Not enough participants to proceed."
                 )
 
         else:
             # If the user is not the creator, inform them they cannot stop the poll
-            await query.answer("Ви не є творцем опитування.", show_alert=True)
+            await query.answer("You are not the poll creator.", show_alert=True)
 
     else:
         # If no poll data found, inform that the poll may have already been stopped
         await query.answer("This poll may have already been stopped.", show_alert=True)
 
           
-async def generate_matches(update: Update, context: ContextTypes.DEFAULT_TYPE, users_list: list[User]):
+async def generate_matches(update: Update, context: ContextTypes.DEFAULT_TYPE, users_list: list[User], message_thread_id: int = None):
     """
     Get information about participants from poll in form of list
     Shuffle users from list and make pairs
@@ -111,10 +117,10 @@ async def generate_matches(update: Update, context: ContextTypes.DEFAULT_TYPE, u
     """
 
     participants = users_list
-    
+
     # Shuffle users
     random.shuffle(participants)
-    
+
     # Pair up users
     pairs = []
     while len(participants) >= 2:
@@ -127,11 +133,15 @@ async def generate_matches(update: Update, context: ContextTypes.DEFAULT_TYPE, u
         pairs[random_pair_index] += (participants.pop().username,)
 
     # Format and send message with pairs
-    message_text = "Ось ваші компаньйони:\n\n"
+    message_text = "Here are your matches:\n\n"
     for pair in pairs:
         message_text += " - ".join(f"@{username}" for username in pair) + "\n"
 
-    message_text += "\n Гарно провести час разом! 😉"
+    message_text += "\nEnjoy your time together! 😉"
     # Send the message to the chat
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=message_text)
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        message_thread_id=message_thread_id,
+        text=message_text
+    )
         
