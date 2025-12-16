@@ -1,7 +1,10 @@
+import logging
 from typing import Optional, List, Set, Tuple
 from datetime import datetime
 from database.connection import get_db
 from database.models import Match, MatchingRound, MatchHistory
+
+logger = logging.getLogger(__name__)
 
 
 class MatchRepository:
@@ -20,6 +23,40 @@ class MatchRepository:
             total_subscribers=total_subscribers,
             total_pairs=total_pairs
         )
+
+    @staticmethod
+    async def create_round_atomic(month_year: str) -> Optional[MatchingRound]:
+        """
+        Atomically create a round if it doesn't exist.
+        Returns the new round if created, None if already exists.
+        Uses INSERT OR IGNORE for atomic check-and-insert.
+        """
+        db = await get_db()
+        cursor = await db.execute('''
+            INSERT OR IGNORE INTO matching_rounds (month_year, total_subscribers, total_pairs)
+            VALUES (?, 0, 0)
+        ''', (month_year,))
+        await db.commit()
+
+        if cursor.rowcount == 0:
+            # Round already existed
+            logger.info(f"Matching round for {month_year} already exists")
+            return None
+
+        # Get the newly created round
+        round_obj = await MatchRepository.get_current_round(month_year)
+        logger.info(f"Created new matching round for {month_year} with id {round_obj.id}")
+        return round_obj
+
+    @staticmethod
+    async def update_round_stats(round_id: int, total_subscribers: int, total_pairs: int):
+        """Update the stats for a matching round."""
+        db = await get_db()
+        await db.execute('''
+            UPDATE matching_rounds SET total_subscribers = ?, total_pairs = ?
+            WHERE id = ?
+        ''', (total_subscribers, total_pairs, round_id))
+        await db.commit()
 
     @staticmethod
     async def get_current_round(month_year: str) -> Optional[MatchingRound]:

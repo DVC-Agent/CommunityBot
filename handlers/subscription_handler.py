@@ -24,8 +24,9 @@ async def _update_subscription_message(query, subscriber_count: int):
             ),
             reply_markup=reply_markup
         )
-    except BadRequest:
-        pass
+    except BadRequest as e:
+        # Message not modified or already deleted - safe to ignore
+        logger.debug(f"Could not update subscription message: {e}")
 
 
 async def join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -115,8 +116,9 @@ async def _update_group_message_count(context: ContextTypes.DEFAULT_TYPE, subscr
             message_id=config.info_message_id,
             reply_markup=reply_markup
         )
-    except BadRequest:
-        pass
+    except BadRequest as e:
+        # Message not modified or bot lacks permission - safe to ignore
+        logger.debug(f"Could not update group message count: {e}")
 
 
 async def my_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

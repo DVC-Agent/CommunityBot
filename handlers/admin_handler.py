@@ -12,9 +12,10 @@ ADMIN_IDS = set(map(int, os.getenv('ADMIN_USER_IDS', '').split(','))) if os.gete
 
 def is_admin(user_id: int) -> bool:
     """Check if user is an admin."""
-    # If no admins configured, allow anyone (for initial setup)
+    # SECURITY: If no admins configured, deny all admin access
     if not ADMIN_IDS:
-        return True
+        logger.warning("No ADMIN_USER_IDS configured - admin functions disabled for security")
+        return False
     return user_id in ADMIN_IDS
 
 

@@ -18,9 +18,11 @@ class MatchingService:
         month_year = datetime.now().strftime("%Y-%m")
         month_name = datetime.now().strftime("%B %Y")
 
-        # Check if already matched this month
-        existing_round = await MatchRepository.get_current_round(month_year)
-        if existing_round:
+        # Atomic check-and-create to prevent race conditions
+        round_obj = await MatchRepository.create_round_atomic(month_year)
+        if round_obj is None:
+            # Round already exists, get it and return status
+            existing_round = await MatchRepository.get_current_round(month_year)
             logger.info(f"Matching already done for {month_year}")
             return {
                 'status': 'already_done',
@@ -36,6 +38,8 @@ class MatchingService:
 
         if total_subscribers < 2:
             logger.info(f"Not enough subscribers for matching: {total_subscribers}")
+            # Update round stats even if not enough subscribers
+            await MatchRepository.update_round_stats(round_obj.id, total_subscribers, 0)
             return {
                 'status': 'not_enough',
                 'month_year': month_year,
@@ -50,12 +54,8 @@ class MatchingService:
         # Generate matches
         matches = await MatchingService._generate_matches(subscribers, historical_pairs)
 
-        # Create the round
-        round_obj = await MatchRepository.create_round(
-            month_year=month_year,
-            total_subscribers=total_subscribers,
-            total_pairs=len(matches)
-        )
+        # Update the round stats (round was created atomically above)
+        await MatchRepository.update_round_stats(round_obj.id, total_subscribers, len(matches))
 
         # Save matches and send notifications
         dms_sent = 0

@@ -19,25 +19,30 @@ async def followup_response_callback(update: Update, context: ContextTypes.DEFAU
         logger.error(f"Invalid followup callback data: {data}")
         return
 
-    response = parts[1]
-    match_id = int(parts[2])
-    user_id = query.from_user.id
+    try:
+        response = parts[1]
+        match_id = int(parts[2])
+        user_id = query.from_user.id
 
-    await FollowUpRepository.record_response(match_id, user_id, response)
-    await InactivityService.process_followup_response(user_id, response)
+        await FollowUpRepository.record_response(match_id, user_id, response)
+        await InactivityService.process_followup_response(user_id, response)
 
-    if response == "yes":
-        await query.edit_message_text(
-            "🎉 Amazing! Glad you connected!\n\n"
-            "See you next month for another great conversation. ☕️"
-        )
-    else:
-        await query.edit_message_text(
-            "No worries — life gets busy!\n\n"
-            "Hopefully you'll get a chance to connect next month. 💛"
-        )
+        if response == "yes":
+            await query.edit_message_text(
+                "🎉 Amazing! Glad you connected!\n\n"
+                "See you next month for another great conversation. ☕️"
+            )
+        else:
+            await query.edit_message_text(
+                "No worries — life gets busy!\n\n"
+                "Hopefully you'll get a chance to connect next month. 💛"
+            )
 
-    logger.info(f"User {user_id} responded '{response}' to match {match_id}")
+        logger.info(f"User {user_id} responded '{response}' to match {match_id}")
+    except ValueError as e:
+        logger.error(f"Invalid match_id in callback data: {data}", exc_info=True)
+    except Exception as e:
+        logger.error(f"Error processing followup response: {e}", exc_info=True)
 
 
 async def request_rematch_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -52,12 +57,17 @@ async def request_rematch_callback(update: Update, context: ContextTypes.DEFAULT
         logger.error(f"Invalid rematch callback data: {data}")
         return
 
-    match_id = int(parts[2])
-    user_id = query.from_user.id
+    try:
+        match_id = int(parts[2])
+        user_id = query.from_user.id
 
-    await query.edit_message_text(
-        query.message.text + "\n\n"
-        "📝 Rematch requested — we'll review and get back to you!"
-    )
+        await query.edit_message_text(
+            query.message.text + "\n\n"
+            "📝 Rematch requested — we'll review and get back to you!"
+        )
 
-    logger.info(f"User {user_id} requested rematch for match {match_id}")
+        logger.info(f"User {user_id} requested rematch for match {match_id}")
+    except ValueError as e:
+        logger.error(f"Invalid match_id in rematch callback data: {data}", exc_info=True)
+    except Exception as e:
+        logger.error(f"Error processing rematch request: {e}", exc_info=True)

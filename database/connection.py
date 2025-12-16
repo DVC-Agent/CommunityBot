@@ -1,8 +1,11 @@
 import aiosqlite
+import logging
 import os
 from typing import Optional
 
 DATABASE_PATH = os.getenv('DATABASE_PATH', './random_coffee.db')
+
+logger = logging.getLogger(__name__)
 
 _db: Optional[aiosqlite.Connection] = None
 
@@ -13,6 +16,9 @@ async def get_db() -> aiosqlite.Connection:
     if _db is None:
         _db = await aiosqlite.connect(DATABASE_PATH)
         _db.row_factory = aiosqlite.Row
+        # CRITICAL: Enable foreign key constraints
+        await _db.execute("PRAGMA foreign_keys = ON")
+        logger.info("Database connection established with foreign keys enabled")
     return _db
 
 
@@ -117,7 +123,7 @@ async def init_db():
 
 
 class Database:
-    """Context manager for database operations."""
+    """Context manager for database operations with proper transaction handling."""
 
     def __init__(self):
         self.db: Optional[aiosqlite.Connection] = None
@@ -128,4 +134,10 @@ class Database:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.db:
-            await self.db.commit()
+            if exc_type is None:
+                # No exception, commit the transaction
+                await self.db.commit()
+            else:
+                # Exception occurred, rollback the transaction
+                await self.db.rollback()
+                logger.error(f"Transaction rolled back due to: {exc_val}", exc_info=True)
